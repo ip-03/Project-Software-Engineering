@@ -1,0 +1,21 @@
+E:\c#\Project Software Engineering\bin\Debug\net7.0-windows\Project Software Engineering.exe
+E:\c#\Project Software Engineering\bin\Debug\net7.0-windows\Project Software Engineering.deps.json
+E:\c#\Project Software Engineering\bin\Debug\net7.0-windows\Project Software Engineering.runtimeconfig.json
+E:\c#\Project Software Engineering\bin\Debug\net7.0-windows\Project Software Engineering.dll
+E:\c#\Project Software Engineering\bin\Debug\net7.0-windows\Project Software Engineering.pdb
+E:\c#\Project Software Engineering\obj\Debug\net7.0-windows\Project Software Engineering.csproj.AssemblyReference.cache
+E:\c#\Project Software Engineering\obj\Debug\net7.0-windows\Views\MainWindow.g.cs
+E:\c#\Project Software Engineering\obj\Debug\net7.0-windows\App.g.cs
+E:\c#\Project Software Engineering\obj\Debug\net7.0-windows\Project Software Engineering_MarkupCompile.cache
+E:\c#\Project Software Engineering\obj\Debug\net7.0-windows\Project Software Engineering_MarkupCompile.lref
+E:\c#\Project Software Engineering\obj\Debug\net7.0-windows\Views\MainWindow.baml
+E:\c#\Project Software Engineering\obj\Debug\net7.0-windows\Project Software Engineering.g.resources
+E:\c#\Project Software Engineering\obj\Debug\net7.0-windows\Project Software Engineering.GeneratedMSBuildEditorConfig.editorconfig
+E:\c#\Project Software Engineering\obj\Debug\net7.0-windows\Project Software Engineering.AssemblyInfoInputs.cache
+E:\c#\Project Software Engineering\obj\Debug\net7.0-windows\Project Software Engineering.AssemblyInfo.cs
+E:\c#\Project Software Engineering\obj\Debug\net7.0-windows\Project Software Engineering.csproj.CoreCompileInputs.cache
+E:\c#\Project Software Engineering\obj\Debug\net7.0-windows\Project Software Engineering.dll
+E:\c#\Project Software Engineering\obj\Debug\net7.0-windows\refint\Project Software Engineering.dll
+E:\c#\Project Software Engineering\obj\Debug\net7.0-windows\Project Software Engineering.pdb
+E:\c#\Project Software Engineering\obj\Debug\net7.0-windows\Project Software Engineering.genruntimeconfig.cache
+E:\c#\Project Software Engineering\obj\Debug\net7.0-windows\ref\Project Software Engineering.dll
