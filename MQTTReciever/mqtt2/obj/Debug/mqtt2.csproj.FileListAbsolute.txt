@@ -1,0 +1,24 @@
+C:\Users\iurko\source\repos\mqtt2\mqtt2\bin\Debug\mqtt2.exe.config
+C:\Users\iurko\source\repos\mqtt2\mqtt2\bin\Debug\mqtt2.exe
+C:\Users\iurko\source\repos\mqtt2\mqtt2\bin\Debug\mqtt2.pdb
+C:\Users\iurko\source\repos\mqtt2\mqtt2\bin\Debug\MQTTnet.dll
+C:\Users\iurko\source\repos\mqtt2\mqtt2\obj\Debug\mqtt2.csproj.AssemblyReference.cache
+C:\Users\iurko\source\repos\mqtt2\mqtt2\obj\Debug\mqtt2.csproj.SuggestedBindingRedirects.cache
+C:\Users\iurko\source\repos\mqtt2\mqtt2\obj\Debug\mqtt2.csproj.CoreCompileInputs.cache
+C:\Users\iurko\source\repos\mqtt2\mqtt2\obj\Debug\mqtt2.csproj.CopyComplete
+C:\Users\iurko\source\repos\mqtt2\mqtt2\obj\Debug\mqtt2.exe
+C:\Users\iurko\source\repos\mqtt2\mqtt2\obj\Debug\mqtt2.pdb
+C:\Users\iurko\source\repos\mqtt2\mqtt2\bin\Debug\Newtonsoft.Json.dll
+C:\Users\iurko\source\repos\mqtt2\mqtt2\bin\Debug\Newtonsoft.Json.xml
+E:\Year 2\Project-Software-Engineering\mqtt2\mqtt2\bin\Debug\mqtt2.exe.config
+E:\Year 2\Project-Software-Engineering\mqtt2\mqtt2\bin\Debug\mqtt2.exe
+E:\Year 2\Project-Software-Engineering\mqtt2\mqtt2\bin\Debug\mqtt2.pdb
+E:\Year 2\Project-Software-Engineering\mqtt2\mqtt2\bin\Debug\MQTTnet.dll
+E:\Year 2\Project-Software-Engineering\mqtt2\mqtt2\bin\Debug\Newtonsoft.Json.dll
+E:\Year 2\Project-Software-Engineering\mqtt2\mqtt2\bin\Debug\Newtonsoft.Json.xml
+E:\Year 2\Project-Software-Engineering\mqtt2\mqtt2\obj\Debug\mqtt2.csproj.AssemblyReference.cache
+E:\Year 2\Project-Software-Engineering\mqtt2\mqtt2\obj\Debug\mqtt2.csproj.SuggestedBindingRedirects.cache
+E:\Year 2\Project-Software-Engineering\mqtt2\mqtt2\obj\Debug\mqtt2.csproj.CoreCompileInputs.cache
+E:\Year 2\Project-Software-Engineering\mqtt2\mqtt2\obj\Debug\mqtt2.csproj.CopyComplete
+E:\Year 2\Project-Software-Engineering\mqtt2\mqtt2\obj\Debug\mqtt2.exe
+E:\Year 2\Project-Software-Engineering\mqtt2\mqtt2\obj\Debug\mqtt2.pdb
