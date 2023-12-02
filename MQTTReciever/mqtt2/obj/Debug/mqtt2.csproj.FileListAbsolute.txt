@@ -22,3 +22,15 @@ E:\Year 2\Project-Software-Engineering\mqtt2\mqtt2\obj\Debug\mqtt2.csproj.CoreCo
 E:\Year 2\Project-Software-Engineering\mqtt2\mqtt2\obj\Debug\mqtt2.csproj.CopyComplete
 E:\Year 2\Project-Software-Engineering\mqtt2\mqtt2\obj\Debug\mqtt2.exe
 E:\Year 2\Project-Software-Engineering\mqtt2\mqtt2\obj\Debug\mqtt2.pdb
+E:\Year 2\Project-Software-Engineering\MQTTReciever\mqtt2\bin\Debug\mqtt2.exe.config
+E:\Year 2\Project-Software-Engineering\MQTTReciever\mqtt2\bin\Debug\mqtt2.exe
+E:\Year 2\Project-Software-Engineering\MQTTReciever\mqtt2\bin\Debug\mqtt2.pdb
+E:\Year 2\Project-Software-Engineering\MQTTReciever\mqtt2\bin\Debug\MQTTnet.dll
+E:\Year 2\Project-Software-Engineering\MQTTReciever\mqtt2\bin\Debug\Newtonsoft.Json.dll
+E:\Year 2\Project-Software-Engineering\MQTTReciever\mqtt2\bin\Debug\Newtonsoft.Json.xml
+E:\Year 2\Project-Software-Engineering\MQTTReciever\mqtt2\obj\Debug\mqtt2.csproj.AssemblyReference.cache
+E:\Year 2\Project-Software-Engineering\MQTTReciever\mqtt2\obj\Debug\mqtt2.csproj.SuggestedBindingRedirects.cache
+E:\Year 2\Project-Software-Engineering\MQTTReciever\mqtt2\obj\Debug\mqtt2.csproj.CoreCompileInputs.cache
+E:\Year 2\Project-Software-Engineering\MQTTReciever\mqtt2\obj\Debug\mqtt2.csproj.CopyComplete
+E:\Year 2\Project-Software-Engineering\MQTTReciever\mqtt2\obj\Debug\mqtt2.exe
+E:\Year 2\Project-Software-Engineering\MQTTReciever\mqtt2\obj\Debug\mqtt2.pdb

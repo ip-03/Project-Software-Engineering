@@ -8,6 +8,7 @@ using System.Data.SqlClient;
 using System.Data;
 using System.Text;
 using System.Threading.Tasks;
+using System.Threading;
 
 namespace mqtt
 {
@@ -15,6 +16,8 @@ namespace mqtt
     {
         static async Task Main(string[] args)
         {
+            var semaphore = new SemaphoreSlim(0);
+
             var factory = new MqttFactory();
             var client = factory.CreateMqttClient();
 
@@ -44,7 +47,6 @@ namespace mqtt
             {
                 Console.WriteLine("### RECEIVED APPLICATION MESSAGE ###");
                 Console.WriteLine($"+ Topic = {e.ApplicationMessage.Topic}");
-                //Console.WriteLine($"+ Payload = {Encoding.UTF8.GetString(e.ApplicationMessage.Payload)}");
                 Console.WriteLine($"+ QoS = {e.ApplicationMessage.QualityOfServiceLevel}");
                 Console.WriteLine($"+ Retain = {e.ApplicationMessage.Retain}");
                 Console.WriteLine();
@@ -52,26 +54,14 @@ namespace mqtt
                 // Deserialize JSON payload
                 var payloadJson = Encoding.UTF8.GetString(e.ApplicationMessage.Payload);
                 var parsedPayload = JsonConvert.DeserializeObject<DeviceData>(payloadJson);
-                // Display parsed content
-                Console.WriteLine("### Parsed Payload ###");
-                Console.WriteLine($"Device ID: {parsedPayload.end_device_ids.device_id}");
-                Console.WriteLine($"Received At: {parsedPayload.received_at}");
-                Console.WriteLine($"Battery Voltage: {parsedPayload.uplink_message.decoded_payload.BatV}");
-                Console.WriteLine($"Temperature (SHT): {parsedPayload.uplink_message.decoded_payload.TempC_SHT}");
-                Console.WriteLine($"Temperature (DS): {parsedPayload.uplink_message.decoded_payload.TempC_DS}");
-                Console.WriteLine($"Humidity (SHT): {parsedPayload.uplink_message.decoded_payload.Hum_SHT}");
-                Console.WriteLine($"Latitude: {parsedPayload.uplink_message.rx_metadata[0].location.latitude}");
-                Console.WriteLine($"Longitude: {parsedPayload.uplink_message.rx_metadata[0].location.longitude}");
-                Console.WriteLine($"Altitude: {(parsedPayload.uplink_message.rx_metadata[0].location.altitude.HasValue ? parsedPayload.uplink_message.rx_metadata[0].location.altitude.Value.ToString() : "NULL")}");
-
-                Console.WriteLine();
 
                 UploadToDatabase(parsedPayload);
+                semaphore.Release();
             });
 
             await client.ConnectAsync(options);
 
-            Console.ReadLine();
+            await semaphore.WaitAsync();
 
             await client.DisconnectAsync();
         }
@@ -102,12 +92,24 @@ namespace mqtt
                                             "VALUES (@device_id, @gateway_id); " +
                                             "END";
 
+                string batteryStatusInsertQuery = "IF EXISTS(SELECT 1 FROM battery_status WHERE device_id = @device_id) " +
+                                                  "BEGIN " +
+                                                  "UPDATE battery_status SET battery_status = @battery_status, BatV = @BatV WHERE device_id = @device_id; " +
+                                                  "END " +
+                                                  "ELSE " +
+                                                  "BEGIN " +
+                                                  "INSERT INTO battery_status (device_id, battery_status, BatV) " +
+                                                  "VALUES (@device_id, @battery_status, @BatV); " +
+                                                  "END";
+
+                string sensorDataInsertQuery = "INSERT INTO sensor_data (device_id, temperature_in, temperature_out, humidity, ambient_light, barometric_pressure, date_time)" +
+                                               "VALUES (@device_id, @temperature_in, @temperature_out, @humidity, @ambient_light, @barometric_pressure, @date_time)";
+
                 using (SqlConnection connection = new SqlConnection(connectionString))
                 {
                     using (SqlCommand gatewayInsertCommand = new SqlCommand(gatewayInsertQuery, connection))
                     {
                         string gatewayID = parsedPayload.uplink_message.rx_metadata[0].gateway_ids.gateway_id;
-                        DateTime sentAt = parsedPayload.uplink_message.rx_metadata[0].received_at;
                         double airtime = double.Parse(parsedPayload.uplink_message.consumed_airtime.Substring(0, parsedPayload.uplink_message.consumed_airtime.Length - 2));
                         double rssi = parsedPayload.uplink_message.rx_metadata[0].rssi;
                         double snr = parsedPayload.uplink_message.rx_metadata[0].snr;
@@ -135,7 +137,7 @@ namespace mqtt
 
                         if (rowsAffected > 0)
                         {
-                            Console.WriteLine("gateway: Data inserted successful.");
+                            Console.WriteLine("gateway: Data insertion successful.");
                         }
                         else
                         {
@@ -156,11 +158,72 @@ namespace mqtt
 
                         if (rowsAffected > 0)
                         {
-                            Console.WriteLine("device: Data inserted successful.");
+                            Console.WriteLine("device: Data insertion successful.");
                         }
                         else
                         {
                             Console.WriteLine("device: Data insertion failed.");
+                        }
+                        connection.Close();
+                    }
+                    using (SqlCommand batteryStatusInsertCommand = new SqlCommand(batteryStatusInsertQuery, connection))
+                    {
+                        string deviceID = parsedPayload.end_device_ids.device_id;
+                        int batteryStatus = parsedPayload.uplink_message.decoded_payload.Bat_status;
+                        double batteryVoltage = parsedPayload.uplink_message.decoded_payload.BatV;
+
+                        batteryStatusInsertCommand.Parameters.AddWithValue("@device_id", deviceID);
+                        batteryStatusInsertCommand.Parameters.AddWithValue("@battery_status", batteryStatus);
+                        batteryStatusInsertCommand.Parameters.AddWithValue("@BatV", batteryVoltage);
+
+                        connection.Open();
+                        int rowsAffected = batteryStatusInsertCommand.ExecuteNonQuery();
+
+                        if (rowsAffected > 0)
+                        {
+                            Console.WriteLine("battery_status: Data insertion successful.");
+                        }
+                        else
+                        {
+                            Console.WriteLine("battery_status: Data insertion failed.");
+                        }
+                        connection.Close();
+                    }
+                    using (SqlCommand sensorDataInsertCommand = new SqlCommand(sensorDataInsertQuery, connection))
+                    {
+                        string deviceID = parsedPayload.end_device_ids.device_id;
+                        double temperatureSHT = parsedPayload.uplink_message.decoded_payload.TempC_SHT;
+                        double? temperatureDS = parsedPayload.uplink_message.decoded_payload.TempC_DS;
+                        double humidity = parsedPayload.uplink_message.decoded_payload.Hum_SHT;
+                        int ambientLight = parsedPayload.uplink_message.decoded_payload.ILL_lx;
+                        DateTime sentAt = parsedPayload.uplink_message.rx_metadata[0].received_at;
+
+                        sensorDataInsertCommand.Parameters.AddWithValue("@device_id", deviceID);
+                        if (temperatureDS.HasValue)
+                        {
+                            sensorDataInsertCommand.Parameters.AddWithValue("@temperature_out", temperatureDS.Value);
+                            sensorDataInsertCommand.Parameters.AddWithValue("@temperature_in", temperatureSHT);
+                        }
+                        else
+                        {
+                            sensorDataInsertCommand.Parameters.AddWithValue("@temperature_in", DBNull.Value);
+                            sensorDataInsertCommand.Parameters.AddWithValue("@temperature_out", temperatureSHT);
+                        }
+                        sensorDataInsertCommand.Parameters.AddWithValue("@humidity", humidity);
+                        sensorDataInsertCommand.Parameters.AddWithValue("@ambient_light", ambientLight);
+                        sensorDataInsertCommand.Parameters.AddWithValue("@barometric_pressure", DBNull.Value);
+                        sensorDataInsertCommand.Parameters.AddWithValue("@date_time", sentAt);
+
+                        connection.Open();
+                        int rowsAffected = sensorDataInsertCommand.ExecuteNonQuery();
+
+                        if (rowsAffected > 0)
+                        {
+                            Console.WriteLine("sensor_data: Data insertion successful.\n");
+                        }
+                        else
+                        {
+                            Console.WriteLine("sensor_data: Data insertion failed.\n");
                         }
                         connection.Close();
                     }
@@ -216,8 +279,10 @@ namespace mqtt
     public class DecodedPayload
     {
         public double BatV { get; set; }
+        public int Bat_status { get; set; }
         public double TempC_SHT { get; set; }
         public double? TempC_DS { get; set; }
         public double Hum_SHT { get; set; }
+        public int ILL_lx { get; set; }
     }
 }
