@@ -62,7 +62,7 @@ namespace WeatherApp
 
                     ChartSeriesCollection.Clear();
 
-                    GraphWindow graphWindow = new GraphWindow();
+                    GraphWindow graphWindow = new GraphWindow(selectedDevices);
 
                     // Set the DataContext for the GraphWindow
                     graphWindow.DataContext = this;
@@ -116,7 +116,7 @@ namespace WeatherApp
 
 
                         ChartSeriesCollection.Add(series);
-
+                        var moreDataWindow = new MoreDataWindow(selectedDevices);
 
                     }
                 }

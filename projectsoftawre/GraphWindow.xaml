@@ -26,6 +26,6 @@
         </lvc:CartesianChart>
 
         <!-- Move the button to the bottom left with a gap above it -->
-        <Button x:Name="GetMoreDataButton" Content="More Data" Click="MoreDataButton" Foreground="White" Background="Black" Height="35" Margin="0,0,0,10" HorizontalAlignment="Right" VerticalAlignment="Bottom" Width="151" Grid.Column="1"/>
+        <Button x:Name="GetMoreDataButton" Content="Show More Details" Click="MoreDataButton" Foreground="White" Background="Black" Height="35" Margin="0,0,12,10" HorizontalAlignment="Right" VerticalAlignment="Bottom" Width="185" Grid.Column="1"/>
     </Grid>
 </Window>

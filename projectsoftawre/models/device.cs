@@ -13,8 +13,8 @@ namespace WeatherApp
         [Key]
         public string device_id { get; set; }
         public string gateway_id { get; set; }
-        public int battery_status { get; set; }
-        public double BatV { get; set; }
+        public int? battery_status { get; set; }
+        public double? BatV { get; set; }
 
     }
 

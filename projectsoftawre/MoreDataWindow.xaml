@@ -7,6 +7,8 @@
         mc:Ignorable="d"
         Title="MoreDataWindow" Height="450" Width="800">
     <Grid>
-        
+        <TextBlock Text="WeatherApp" FontSize="24" FontWeight="Bold" Foreground="Black" Margin="10,10,0,10" HorizontalAlignment="Left"/>
+        <TextBlock x:Name="moreDataText" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="20" FontWeight="Bold"/>
+   
     </Grid>
 </Window>

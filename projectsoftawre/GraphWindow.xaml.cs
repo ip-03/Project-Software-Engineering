@@ -16,9 +16,14 @@ namespace WeatherApp
 {
     public partial class GraphWindow : Window
     {
-        public GraphWindow()
+        private List<string> selectedDevices; // Declare selectedDevices as a field
+
+        public GraphWindow(List<string> selectedDevices)
         {
             InitializeComponent();
+
+            // Assign the selectedDevices passed to the constructor to the field
+            this.selectedDevices = selectedDevices;
         }
         private void ChartLoading(object sender, RoutedEventArgs e)
         {
@@ -29,7 +34,7 @@ namespace WeatherApp
         {
 
 
-            MoreDataWindow moreDataWindow = new MoreDataWindow(); 
+            MoreDataWindow moreDataWindow = new MoreDataWindow(selectedDevices); 
 
             
             moreDataWindow.DataContext = this;
