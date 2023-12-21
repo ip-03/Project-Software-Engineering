@@ -9,6 +9,7 @@ using System.Data;
 using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
+using mqtt2;
 
 namespace mqtt
 {
@@ -16,103 +17,142 @@ namespace mqtt
     {
         static async Task Main(string[] args)
         {
-            var semaphore = new SemaphoreSlim(0);
+            var sharedDevicesFactory = new MqttFactory();
+            var sharedDevicesClient = sharedDevicesFactory.CreateMqttClient();
 
-            var factory = new MqttFactory();
-            var client = factory.CreateMqttClient();
+            var personalDeviceFactory = new MqttFactory();
+            var personalDeviceClient = personalDeviceFactory.CreateMqttClient();
 
             // Use TCP connection.
-            var options = new MqttClientOptionsBuilder()
+            var sharedDevicesOptions = new MqttClientOptionsBuilder()
                 .WithTcpServer("eu1.cloud.thethings.network", 8883) // Port can be 1883 or 8883
                 .WithCredentials("project-software-engineering@ttn", "NNSXS.DTT4HTNBXEQDZ4QYU6SG73Q2OXCERCZ6574RVXI.CQE6IG6FYNJOO2MOFMXZVWZE4GXTCC2YXNQNFDLQL4APZMWU6ZGA")
                 .WithTls() // For TLS encryption
                 .Build();
 
-            client.UseConnectedHandler(async e =>
+            var personalDeviceOptions = new MqttClientOptionsBuilder()
+                .WithTcpServer("eu1.cloud.thethings.network", 1883) // Port can be 1883 or 8883
+                .WithCredentials("lorasensor-saxion-group5@ttn", "NNSXS.P64MFYJMU272L7QRWCJYOUVDJVVYPSNWGFSNTMY.YCCCN63LSNSF74ORG5FVUQPZRUH3MHMITLOQLAVX3HKNELT5NPKA")
+                //.WithTls() // For TLS encryption
+                .Build();
+
+            personalDeviceClient.UseConnectedHandler(async e =>
             {
-                Console.WriteLine("### CONNECTED WITH SERVER ###");
+                Console.WriteLine("### CONNECTED WITH PERSONAL DEVICE SERVER ###");
 
                 // Subscribe to a topic
-                await client.SubscribeAsync(new MqttTopicFilterBuilder().WithTopic("v3/project-software-engineering@ttn/devices/#").Build());
+                await personalDeviceClient.SubscribeAsync(new MqttTopicFilterBuilder().WithTopic("#").Build());
 
-                Console.WriteLine("### SUBSCRIBED ###");
+                Console.WriteLine("### SUBSCRIBED TO PERSONAL DEVICE ###");
             });
 
-            client.UseDisconnectedHandler(e =>
+            personalDeviceClient.UseDisconnectedHandler(e =>
             {
-                Console.WriteLine("Disconnected");
+                Console.WriteLine("Disconnected from personal device");
             });
 
-            client.UseApplicationMessageReceivedHandler(e =>
+            personalDeviceClient.UseApplicationMessageReceivedHandler(e =>
             {
-                Console.WriteLine("### RECEIVED APPLICATION MESSAGE ###");
+                Console.WriteLine("### RECEIVED APPLICATION MESSAGE FROM PERSONAL DEVICE ###");
                 Console.WriteLine($"+ Topic = {e.ApplicationMessage.Topic}");
+                Console.WriteLine($"+ QoS = {e.ApplicationMessage.QualityOfServiceLevel}");
+                Console.WriteLine($"+ Retain = {e.ApplicationMessage.Retain}");
+                Console.WriteLine();
+
+                // TODO: Deserialize JSON payload
+                var payloadJson = Encoding.UTF8.GetString(e.ApplicationMessage.Payload);
+                var parsedPayload = JsonConvert.DeserializeObject<MKRData>(payloadJson);
+                UploadToDatabase(parsedPayload);
+            });
+
+            sharedDevicesClient.UseConnectedHandler(async e =>
+            {
+                Console.WriteLine("### CONNECTED WITH SHARED DEVICES SERVER ###");
+
+                // Subscribe to a topic
+                await sharedDevicesClient.SubscribeAsync(new MqttTopicFilterBuilder().WithTopic("v3/project-software-engineering@ttn/devices/#").Build());
+
+                Console.WriteLine("### SUBSCRIBED TO SHARED DEVICES ###");
+            });
+
+            sharedDevicesClient.UseDisconnectedHandler(e =>
+            {
+                Console.WriteLine("Disconnected from shared devices");
+            });
+
+            sharedDevicesClient.UseApplicationMessageReceivedHandler(e =>
+            {
+                Console.WriteLine("### RECEIVED APPLICATION MESSAGE FROM SHARED DEVICES ###");
+                string topic = e.ApplicationMessage.Topic;
+                Console.WriteLine($"+ Topic = {topic}");
+                int a = topic.IndexOf("devices/") + "devices/".Length;
+                int b = topic.IndexOf("/up", a);
+                string device = topic.Substring(a, b - a);
+                Console.WriteLine("Device ID: {0}", device);
                 Console.WriteLine($"+ QoS = {e.ApplicationMessage.QualityOfServiceLevel}");
                 Console.WriteLine($"+ Retain = {e.ApplicationMessage.Retain}");
                 Console.WriteLine();
 
                 // Deserialize JSON payload
                 var payloadJson = Encoding.UTF8.GetString(e.ApplicationMessage.Payload);
-                var parsedPayload = JsonConvert.DeserializeObject<DeviceData>(payloadJson);
+                if (device.StartsWith("lht"))
+                {
+                    var parsedLHTPayload = JsonConvert.DeserializeObject<LHTData>(payloadJson);
+                    UploadToDatabase(parsedLHTPayload);
+                }
+                else if (device.StartsWith("mkr"))
+                {
+                    var parsedMKRPayload = JsonConvert.DeserializeObject<MKRData>(payloadJson);
+                    UploadToDatabase(parsedMKRPayload);
+                }
 
-                UploadToDatabase(parsedPayload);
-                semaphore.Release();
+                //UploadToDatabase(parsedPayload);
             });
 
-            await client.ConnectAsync(options);
 
-            await semaphore.WaitAsync();
+            await personalDeviceClient.ConnectAsync(personalDeviceOptions);
+            await sharedDevicesClient.ConnectAsync(sharedDevicesOptions);
 
-            await client.DisconnectAsync();
+            Console.ReadLine();
+
+            await personalDeviceClient.DisconnectAsync();
+            await sharedDevicesClient.DisconnectAsync();
         }
 
-        static void UploadToDatabase(DeviceData parsedPayload)
+        static void UploadToDatabase(LHTData parsedPayload)
         {
             try
             {
                 string connectionString = "Server=projectgroup5saxion.database.windows.net;Database=project_software_engineering;User ID=project_group5_saxion;Password=weatherstation5!;";
 
-                string gatewayInsertQuery = "IF EXISTS(SELECT 1 FROM gateway WHERE gateway_id = @gateway_id) " +
+                string gatewayInsertQuery = "IF NOT EXISTS(SELECT 1 FROM gateway WHERE gateway_id = @gateway_id) " +
                                             "BEGIN " +
-                                            "UPDATE gateway SET rssi = @rssi, snr = @snr, avg_airtime = @avg_airtime WHERE gateway_id = @gateway_id; " +
-                                            "END " +
-                                            "ELSE " +
-                                            "BEGIN " +
-                                            "INSERT INTO gateway (gateway_id, latitude, longitude, altitude, rssi, snr, avg_airtime) " +
-                                            "VALUES (@gateway_id, @latitude, @longitude, @altitude, @rssi, @snr, @avg_airtime); " +
+                                            "INSERT INTO gateway (gateway_id, latitude, longitude, altitude) " +
+                                            "VALUES (@gateway_id, @latitude, @longitude, @altitude); " +
                                             "END";
 
                 string deviceInsertQuery = "IF EXISTS(SELECT 1 FROM device WHERE device_id = @device_id) " +
                                             "BEGIN " +
-                                            "UPDATE device SET gateway_id = @gateway_id WHERE device_id = @device_id; " +
+                                            "UPDATE device SET gateway_id = @gateway_id, battery_status = @battery_status, BatV = @BatV WHERE device_id = @device_id; " +
                                             "END " +
                                             "ELSE " +
                                             "BEGIN " +
-                                            "INSERT INTO device (device_id, gateway_id) " +
-                                            "VALUES (@device_id, @gateway_id); " +
+                                            "INSERT INTO device (device_id, gateway_id, battery_status, BatV) " +
+                                            "VALUES (@device_id, @gateway_id, @battery_status, @BatV); " +
                                             "END";
-
-                string batteryStatusInsertQuery = "IF EXISTS(SELECT 1 FROM battery_status WHERE device_id = @device_id) " +
-                                                  "BEGIN " +
-                                                  "UPDATE battery_status SET battery_status = @battery_status, BatV = @BatV WHERE device_id = @device_id; " +
-                                                  "END " +
-                                                  "ELSE " +
-                                                  "BEGIN " +
-                                                  "INSERT INTO battery_status (device_id, battery_status, BatV) " +
-                                                  "VALUES (@device_id, @battery_status, @BatV); " +
-                                                  "END";
 
                 string sensorDataInsertQuery = "INSERT INTO sensor_data (device_id, temperature_in, temperature_out, humidity, ambient_light, barometric_pressure, date_time)" +
                                                "VALUES (@device_id, @temperature_in, @temperature_out, @humidity, @ambient_light, @barometric_pressure, @date_time)";
+
+                string gatewayMetadataInsertQuery = "INSERT INTO gateway_metadata (rssi, snr, airtime, gateway_id)" +
+                                                    "VALUES (@rssi, @snr, @airtime, @gateway_id)";
 
                 using (SqlConnection connection = new SqlConnection(connectionString))
                 {
                     using (SqlCommand gatewayInsertCommand = new SqlCommand(gatewayInsertQuery, connection))
                     {
                         string gatewayID = parsedPayload.uplink_message.rx_metadata[0].gateway_ids.gateway_id;
-                        double airtime = double.Parse(parsedPayload.uplink_message.consumed_airtime.Substring(0, parsedPayload.uplink_message.consumed_airtime.Length - 2));
-                        double rssi = parsedPayload.uplink_message.rx_metadata[0].rssi;
-                        double snr = parsedPayload.uplink_message.rx_metadata[0].snr;
+                        Console.WriteLine(gatewayID);
                         double latitude = parsedPayload.uplink_message.rx_metadata[0].location.latitude;
                         double longitude = parsedPayload.uplink_message.rx_metadata[0].location.longitude;
                         int? altitude = parsedPayload.uplink_message.rx_metadata[0].location.altitude;
@@ -128,9 +168,6 @@ namespace mqtt
                         {
                             gatewayInsertCommand.Parameters.AddWithValue("@altitude", DBNull.Value);
                         }
-                        gatewayInsertCommand.Parameters.AddWithValue("@rssi", rssi);
-                        gatewayInsertCommand.Parameters.AddWithValue("@snr", snr);
-                        gatewayInsertCommand.Parameters.AddWithValue("@avg_airtime", airtime);
 
                         connection.Open();
                         int rowsAffected = gatewayInsertCommand.ExecuteNonQuery();
@@ -149,7 +186,11 @@ namespace mqtt
                     {
                         string deviceID = parsedPayload.end_device_ids.device_id;
                         string gatewayID = parsedPayload.uplink_message.rx_metadata[0].gateway_ids.gateway_id;
+                        int batteryStatus = parsedPayload.uplink_message.decoded_payload.Bat_status;
+                        double batteryVoltage = parsedPayload.uplink_message.decoded_payload.BatV;
 
+                        deviceInsertCommand.Parameters.AddWithValue("@battery_status", batteryStatus);
+                        deviceInsertCommand.Parameters.AddWithValue("@BatV", batteryVoltage);
                         deviceInsertCommand.Parameters.AddWithValue("@device_id", deviceID);
                         deviceInsertCommand.Parameters.AddWithValue("@gateway_id", gatewayID);
 
@@ -163,29 +204,6 @@ namespace mqtt
                         else
                         {
                             Console.WriteLine("device: Data insertion failed.");
-                        }
-                        connection.Close();
-                    }
-                    using (SqlCommand batteryStatusInsertCommand = new SqlCommand(batteryStatusInsertQuery, connection))
-                    {
-                        string deviceID = parsedPayload.end_device_ids.device_id;
-                        int batteryStatus = parsedPayload.uplink_message.decoded_payload.Bat_status;
-                        double batteryVoltage = parsedPayload.uplink_message.decoded_payload.BatV;
-
-                        batteryStatusInsertCommand.Parameters.AddWithValue("@device_id", deviceID);
-                        batteryStatusInsertCommand.Parameters.AddWithValue("@battery_status", batteryStatus);
-                        batteryStatusInsertCommand.Parameters.AddWithValue("@BatV", batteryVoltage);
-
-                        connection.Open();
-                        int rowsAffected = batteryStatusInsertCommand.ExecuteNonQuery();
-
-                        if (rowsAffected > 0)
-                        {
-                            Console.WriteLine("battery_status: Data insertion successful.");
-                        }
-                        else
-                        {
-                            Console.WriteLine("battery_status: Data insertion failed.");
                         }
                         connection.Close();
                     }
@@ -227,6 +245,29 @@ namespace mqtt
                         }
                         connection.Close();
                     }
+                    using (SqlCommand gatewayMetadataInsertCommand = new SqlCommand(gatewayMetadataInsertQuery, connection))
+                    {
+                        double airtime = double.Parse(parsedPayload.uplink_message.consumed_airtime.Substring(0, parsedPayload.uplink_message.consumed_airtime.Length - 2));
+                        double rssi = parsedPayload.uplink_message.rx_metadata[0].rssi;
+                        double snr = parsedPayload.uplink_message.rx_metadata[0].snr;
+                        string gatewayID = parsedPayload.uplink_message.rx_metadata[0].gateway_ids.gateway_id;
+
+                        gatewayMetadataInsertCommand.Parameters.AddWithValue("@gateway_id", gatewayID);
+                        gatewayMetadataInsertCommand.Parameters.AddWithValue("@rssi", rssi);
+                        gatewayMetadataInsertCommand.Parameters.AddWithValue("@snr", snr);
+                        gatewayMetadataInsertCommand.Parameters.AddWithValue("@airtime", airtime);
+                        connection.Open();
+                        int rowsAffected = gatewayMetadataInsertCommand.ExecuteNonQuery();
+                        if (rowsAffected > 0)
+                        {
+                            Console.WriteLine("gateway_metadata: Data insertion successful.\n");
+                        }
+                        else
+                        {
+                            Console.WriteLine("gateway_metadata: Data insertion failed.\n");
+                        }
+                        connection.Close();
+                    }
                 }
             }
             catch (Exception ex)
@@ -234,55 +275,151 @@ namespace mqtt
                 Console.WriteLine("Error: " + ex.Message);
             }
         }
-    }
+        static void UploadToDatabase(MKRData parsedPayload)
+        {
+            try
+            {
+                string connectionString = "Server=projectgroup5saxion.database.windows.net;Database=project_software_engineering;User ID=project_group5_saxion;Password=weatherstation5!;";
 
-    // Define the structure of the JSON payload using C# classes
-    public class DeviceData
-    {
-        public EndDeviceIds end_device_ids { get; set; }
-        public DateTime received_at { get; set; }
-        public UplinkMessage uplink_message { get; set; }
-    }
+                string gatewayInsertQuery = "IF NOT EXISTS(SELECT 1 FROM gateway WHERE gateway_id = @gateway_id) " +
+                                            "BEGIN " +
+                                            "INSERT INTO gateway (gateway_id, latitude, longitude, altitude) " +
+                                            "VALUES (@gateway_id, @latitude, @longitude, @altitude); " +
+                                            "END";
 
-    public class Location
-    {
-        public double latitude { get; set; }
-        public double longitude { get; set; }
-        public int? altitude { get; set; }
-    }
+                string deviceInsertQuery = "IF EXISTS(SELECT 1 FROM device WHERE device_id = @device_id) " +
+                                            "BEGIN " +
+                                            "UPDATE device SET gateway_id = @gateway_id, battery_status = @battery_status, BatV = @BatV WHERE device_id = @device_id; " +
+                                            "END " +
+                                            "ELSE " +
+                                            "BEGIN " +
+                                            "INSERT INTO device (device_id, gateway_id, battery_status, BatV) " +
+                                            "VALUES (@device_id, @gateway_id, @battery_status, @BatV); " +
+                                            "END";
 
-    public class GatewayIds
-    {
-        public string gateway_id { get; set; }
-    }
+                string sensorDataInsertQuery = "INSERT INTO sensor_data (device_id, temperature_in, temperature_out, humidity, ambient_light, barometric_pressure, date_time)" +
+                                               "VALUES (@device_id, @temperature_in, @temperature_out, @humidity, @ambient_light, @barometric_pressure, @date_time)";
 
-    public class RxMetadata
-    {
-        public GatewayIds gateway_ids { get; set; }
-        public int rssi { get; set; }
-        public double snr { get; set; }
-        public Location location { get; set; }
-        public DateTime received_at { get; set; }
-    }
-    public class EndDeviceIds
-    {
-        public string device_id { get; set; }
-    }
+                string gatewayMetadataInsertQuery = "INSERT INTO gateway_metadata (rssi, snr, airtime, gateway_id)" +
+                                                    "VALUES (@rssi, @snr, @airtime, @gateway_id)";
 
-    public class UplinkMessage
-    {
-        public DecodedPayload decoded_payload { get; set; }
-        public List<RxMetadata> rx_metadata { get; set; }
-        public string consumed_airtime { get; set; }
-    }
+                using (SqlConnection connection = new SqlConnection(connectionString))
+                {
+                    using (SqlCommand gatewayInsertCommand = new SqlCommand(gatewayInsertQuery, connection))
+                    {
+                        string gatewayID = parsedPayload.uplink_message.rx_metadata[0].gateway_ids.gateway_id;
+                        Console.WriteLine(gatewayID);
+                        double latitude = parsedPayload.uplink_message.rx_metadata[0].location.latitude;
+                        double longitude = parsedPayload.uplink_message.rx_metadata[0].location.longitude;
+                        int? altitude = parsedPayload.uplink_message.rx_metadata[0].location.altitude;
 
-    public class DecodedPayload
-    {
-        public double BatV { get; set; }
-        public int Bat_status { get; set; }
-        public double TempC_SHT { get; set; }
-        public double? TempC_DS { get; set; }
-        public double Hum_SHT { get; set; }
-        public int ILL_lx { get; set; }
+                        gatewayInsertCommand.Parameters.AddWithValue("@gateway_id", gatewayID);
+                        gatewayInsertCommand.Parameters.AddWithValue("@latitude", latitude);
+                        gatewayInsertCommand.Parameters.AddWithValue("@longitude", longitude);
+                        if (altitude.HasValue)
+                        {
+                            gatewayInsertCommand.Parameters.AddWithValue("@altitude", altitude.Value);
+                        }
+                        else
+                        {
+                            gatewayInsertCommand.Parameters.AddWithValue("@altitude", DBNull.Value);
+                        }
+
+                        connection.Open();
+                        int rowsAffected = gatewayInsertCommand.ExecuteNonQuery();
+
+                        if (rowsAffected > 0)
+                        {
+                            Console.WriteLine("gateway: Data insertion successful.");
+                        }
+                        else
+                        {
+                            Console.WriteLine("gateway: Data insertion failed.");
+                        }
+                        connection.Close();
+                    }
+                    using (SqlCommand deviceInsertCommand = new SqlCommand(deviceInsertQuery, connection))
+                    {
+                        string deviceID = parsedPayload.end_device_ids.device_id;
+                        string gatewayID = parsedPayload.uplink_message.rx_metadata[0].gateway_ids.gateway_id;
+
+                        deviceInsertCommand.Parameters.AddWithValue("@battery_status", DBNull.Value);
+                        deviceInsertCommand.Parameters.AddWithValue("@BatV", DBNull.Value);
+                        deviceInsertCommand.Parameters.AddWithValue("@device_id", deviceID);
+                        deviceInsertCommand.Parameters.AddWithValue("@gateway_id", gatewayID);
+
+                        connection.Open();
+                        int rowsAffected = deviceInsertCommand.ExecuteNonQuery();
+
+                        if (rowsAffected > 0)
+                        {
+                            Console.WriteLine("device: Data insertion successful.");
+                        }
+                        else
+                        {
+                            Console.WriteLine("device: Data insertion failed.");
+                        }
+                        connection.Close();
+                    }
+                    using (SqlCommand sensorDataInsertCommand = new SqlCommand(sensorDataInsertQuery, connection))
+                    {
+                        string deviceID = parsedPayload.end_device_ids.device_id;
+                        double temperature = parsedPayload.uplink_message.decoded_payload.temperature;
+                        double humidity = parsedPayload.uplink_message.decoded_payload.humidity;
+                        int ambientLight = parsedPayload.uplink_message.decoded_payload.light;
+                        int pressure = parsedPayload.uplink_message.decoded_payload.pressure;
+                        DateTime sentAt = parsedPayload.uplink_message.rx_metadata[0].received_at;
+
+                        sensorDataInsertCommand.Parameters.AddWithValue("@device_id", deviceID);
+                        sensorDataInsertCommand.Parameters.AddWithValue("@temperature_in", temperature);
+                        sensorDataInsertCommand.Parameters.AddWithValue("@temperature_out", DBNull.Value);
+                        sensorDataInsertCommand.Parameters.AddWithValue("@humidity", humidity);
+                        sensorDataInsertCommand.Parameters.AddWithValue("@ambient_light", ambientLight);
+                        sensorDataInsertCommand.Parameters.AddWithValue("@barometric_pressure", pressure);
+                        sensorDataInsertCommand.Parameters.AddWithValue("@date_time", sentAt);
+
+                        connection.Open();
+                        int rowsAffected = sensorDataInsertCommand.ExecuteNonQuery();
+
+                        if (rowsAffected > 0)
+                        {
+                            Console.WriteLine("sensor_data: Data insertion successful.\n");
+                        }
+                        else
+                        {
+                            Console.WriteLine("sensor_data: Data insertion failed.\n");
+                        }
+                        connection.Close();
+                    }
+                    using (SqlCommand gatewayMetadataInsertCommand = new SqlCommand(gatewayMetadataInsertQuery, connection))
+                    {
+                        double airtime = double.Parse(parsedPayload.uplink_message.consumed_airtime.Substring(0, parsedPayload.uplink_message.consumed_airtime.Length - 2));
+                        double rssi = parsedPayload.uplink_message.rx_metadata[0].rssi;
+                        double snr = parsedPayload.uplink_message.rx_metadata[0].snr;
+                        string gatewayID = parsedPayload.uplink_message.rx_metadata[0].gateway_ids.gateway_id;
+
+                        gatewayMetadataInsertCommand.Parameters.AddWithValue("@gateway_id", gatewayID);
+                        gatewayMetadataInsertCommand.Parameters.AddWithValue("@rssi", rssi);
+                        gatewayMetadataInsertCommand.Parameters.AddWithValue("@snr", snr);
+                        gatewayMetadataInsertCommand.Parameters.AddWithValue("@airtime", airtime);
+                        connection.Open();
+                        int rowsAffected = gatewayMetadataInsertCommand.ExecuteNonQuery();
+                        if (rowsAffected > 0)
+                        {
+                            Console.WriteLine("gateway_metadata: Data insertion successful.\n");
+                        }
+                        else
+                        {
+                            Console.WriteLine("gateway_metadata: Data insertion failed.\n");
+                        }
+                        connection.Close();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error: " + ex.Message);
+            }
+        }
     }
 }
