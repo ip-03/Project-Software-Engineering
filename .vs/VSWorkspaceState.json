@@ -1,7 +1,8 @@
 {
   "ExpandedNodes": [
-    ""
+    "",
+    "\\mqtt2"
   ],
-  "SelectedNode": "\\projectsoftawre.sln",
+  "SelectedNode": "\\mqtt2\\Program.cs",
   "PreviewInSolutionExplorer": false
 }
