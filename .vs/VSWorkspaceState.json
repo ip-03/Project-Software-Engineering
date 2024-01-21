@@ -1,7 +1,10 @@
 {
   "ExpandedNodes": [
-    ""
+    "",
+    "\\projectsoftawre",
+    "\\projectsoftawre\\models",
+    "\\ProjectSoftwareEngineering"
   ],
-  "SelectedNode": "\\projectsoftawre.sln",
+  "SelectedNode": "\\projectsoftawre\\models\\gateway_metadata.cs",
   "PreviewInSolutionExplorer": false
 }
