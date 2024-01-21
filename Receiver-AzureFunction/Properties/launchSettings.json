@@ -1,9 +1,0 @@
-{
-  "profiles": {
-    "Receiver_AzureFunction": {
-      "commandName": "Project",
-      "commandLineArgs": "--port 7165",
-      "launchBrowser": false
-    }
-  }
-}
