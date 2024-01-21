@@ -13,8 +13,15 @@ using mqtt2;
 
 namespace mqtt
 {
+    /// <summary>
+    /// Main program class for handling MQTT communication and database operations.
+    /// </summary>
     class Program
     {
+        /// <summary>
+        /// Main entry point of the program.
+        /// </summary>
+        /// <param name="args">Command-line arguments.</param>
         static async Task Main(string[] args)
         {
             var sharedDevicesFactory = new MqttFactory();
@@ -119,6 +126,10 @@ namespace mqtt
             await sharedDevicesClient.DisconnectAsync();
         }
 
+        /// <summary>
+        /// Uploads LHT sensor data to the database.
+        /// </summary>
+        /// <param name="parsedPayload">Parsed LHT sensor data.</param>
         static void UploadToDatabase(LHTData parsedPayload)
         {
             try
@@ -275,6 +286,11 @@ namespace mqtt
                 Console.WriteLine("Error: " + ex.Message);
             }
         }
+
+        /// <summary>
+        /// Uploads MKR sensor data to the database.
+        /// </summary>
+        /// <param name="parsedPayload">Parsed MKR sensor data.</param>
         static void UploadToDatabase(MKRData parsedPayload)
         {
             try
